@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alat Edukasi Curve Fitting: Regresi & Interpolasi</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-dragdata@2.2.3/dist/chartjs-plugin-dragdata.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.5.0/math.min.js"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .table-input {
+        width: 80px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #d1d5db;
+      }
+      .table-input:focus {
+        outline: 2px solid #3b82f6;
+        border-color: transparent;
+      }
+      .table-input:disabled,
+      input:disabled {
+        background-color: #f3f4f6;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto p-4 md:p-8">
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-800">
+          Website Edukasi Curve Fitting
+        </h1>
+        <p class="text-lg text-gray-600 mt-2">
+          Pelajari Regresi dan Interpolasi secara Interaktif
+        </p>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div>
+            <p class="text-center text-gray-500 mb-4">
+              Tambahkan titik dengan klik pada grafik, masukkan manual, atau
+              unggah CSV.
+            </p>
+            <div class="mb-6 relative h-96 border border-gray-200 rounded-lg">
+              <canvas id="chart"></canvas>
+            </div>
+            <div
+              id="methodInfoPanel"
+              class="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-lg"
+            >
+              <h3 class="font-bold text-lg mb-2">Informasi Metode</h3>
+              <p id="methodInfoText">
+                Pilih sebuah metode untuk melihat penjelasannya di sini.
+              </p>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-6 border">
+            <h2 class="text-2xl font-semibold mb-6 text-gray-700">
+              Panel Kontrol
+            </h2>
+
+            <div class="mb-4">
+              <label
+                for="fittingMethod"
+                class="block font-medium text-gray-700 mb-2"
+                >1. Pilih Metode Fitting:</label
+              >
+              <select
+                id="fittingMethod"
+                class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              >
+                <option value="regression">Regresi Linier</option>
+                <option value="polynomial">
+                  Interpolasi Polinom (Derajat n)
+                </option>
+                <option value="linear">Interpolasi Linier (Derajat 1)</option>
+                <option value="quadratic">
+                  Interpolasi Kuadrat (Derajat 2)
+                </option>
+                <option value="lagrange">Interpolasi Lagrange</option>
+              </select>
+            </div>
+
+            <div class="mb-4" id="degreeControl">
+              <label class="block font-medium text-gray-700 mb-2"
+                >Derajat Polinom:</label
+              >
+              <div class="flex items-center space-x-3">
+                <input
+                  type="range"
+                  id="degree"
+                  min="1"
+                  max="10"
+                  value="2"
+                  class="w-full"
+                />
+                <span
+                  id="degreeValue"
+                  class="font-mono bg-gray-200 px-3 py-1 rounded-md"
+                  >2</span
+                >
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="block font-medium text-gray-700 mb-2"
+                >2. Masukkan Titik Data:</label
+              >
+              <div
+                id="inputInfo"
+                class="text-sm text-gray-600 bg-gray-100 p-2 rounded-md mb-3"
+              ></div>
+              <div class="flex space-x-2 mb-3">
+                <input
+                  type="number"
+                  id="newX"
+                  placeholder="x"
+                  class="w-full border-gray-300 rounded-md shadow-sm"
+                />
+                <input
+                  type="number"
+                  id="newY"
+                  placeholder="y"
+                  class="w-full border-gray-300 rounded-md shadow-sm"
+                />
+                <button
+                  id="addPointBtn"
+                  class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md whitespace-nowrap"
+                >
+                  Tambah
+                </button>
+              </div>
+              <div class="flex items-center space-x-2">
+                <input type="file" id="csvInput" accept=".csv" class="hidden" />
+                <button
+                  onclick="document.getElementById('csvInput').click()"
+                  class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm"
+                >
+                  Unggah CSV
+                </button>
+                <button
+                  id="clearBtn"
+                  class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm"
+                >
+                  Hapus Semua
+                </button>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <h3 class="font-semibold text-gray-700 mb-2">
+                Titik Data Saat Ini:
+              </h3>
+              <div
+                id="pointsList"
+                class="max-h-36 overflow-y-auto font-mono text-sm space-y-2"
+              ></div>
+            </div>
+
+            <div class="mb-4">
+              <label for="evalX" class="block font-medium text-gray-700 mb-2"
+                >3. Evaluasi Model:</label
+              >
+              <div class="flex space-x-2">
+                <input
+                  type="number"
+                  id="evalX"
+                  step="0.1"
+                  placeholder="Masukkan nilai x"
+                  class="w-full border-gray-300 rounded-md shadow-sm"
+                />
+                <button
+                  id="evalBtn"
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                >
+                  Hitung
+                </button>
+              </div>
+              <div
+                id="evalOutput"
+                class="mt-2 font-mono text-lg text-blue-800 h-6"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">Hasil Analisis</h2>
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <h3 class="font-semibold text-gray-700">Persamaan Model:</h3>
+            <div
+              id="modelEquation"
+              class="bg-gray-50 p-3 rounded mt-2 border"
+            ></div>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-700">
+              Galat Fitting (Mean Squared Error):
+            </h3>
+            <div
+              id="fittingError"
+              class="bg-gray-50 p-3 rounded mt-2 border"
+            ></div>
+          </div>
+        </div>
+        <div class="mt-6">
+          <h3 class="font-semibold text-gray-700 mb-2">
+            Langkah-langkah Perhitungan:
+          </h3>
+          <div
+            id="calculationSteps"
+            class="prose max-w-none bg-gray-50 p-4 rounded-md border"
+          >
+            <p class="text-gray-500 italic">
+              Langkah perhitungan akan muncul di sini.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">
+          Studi Kasus & Latihan
+        </h2>
+        <div class="space-y-6">
+          <details class="bg-gray-50 p-4 rounded-lg border">
+            <summary class="font-semibold cursor-pointer">
+              Kasus 1: Regresi Linier - Prediksi Harga Rumah
+            </summary>
+            <div class="mt-4 prose max-w-none">
+              <p>
+                Seorang agen properti ingin membuat model untuk memprediksi
+                harga rumah berdasarkan luasnya. Dia telah mengumpulkan data
+                berikut:
+              </p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Luas (m²)</th>
+                    <th>Harga (Juta Rp)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>50</td>
+                    <td>300</td>
+                  </tr>
+                  <tr>
+                    <td>70</td>
+                    <td>450</td>
+                  </tr>
+                  <tr>
+                    <td>80</td>
+                    <td>510</td>
+                  </tr>
+                  <tr>
+                    <td>100</td>
+                    <td>600</td>
+                  </tr>
+                  <tr>
+                    <td>120</td>
+                    <td>780</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                <b>Tugas:</b> Buatlah model regresi linier untuk data tersebut.
+                Kemudian, gunakan model itu untuk memprediksi harga rumah dengan
+                luas <b>90 m²</b>.
+              </p>
+              <p><b>Panduan:</b></p>
+              <ol>
+                <li>Pilih metode "Regresi Linier".</li>
+                <li>
+                  Hapus semua titik awal dan masukkan 5 titik data di atas.
+                </li>
+                <li>
+                  Gunakan fitur "Evaluasi Model" dengan memasukkan nilai x = 90
+                  untuk menemukan jawabannya.
+                </li>
+              </ol>
+              <div class="mt-4 pt-4 border-t">
+                <p><b>Kesimpulan & Jawaban:</b></p>
+                <p>
+                  Jawaban yang diharapkan adalah sekitar <b>Rp 567.33 Juta</b>.
+                  Ini menunjukkan kekuatan regresi untuk membuat estimasi
+                  berdasarkan tren data.
+                </p>
+              </div>
+            </div>
+          </details>
+          <details class="bg-gray-50 p-4 rounded-lg border">
+            <summary class="font-semibold cursor-pointer">
+              Kasus 2: Interpolasi Linier - Estimasi Sederhana
+            </summary>
+            <div class="mt-4 prose max-w-none">
+              <p>
+                Anda diminta untuk membuat estimasi cepat untuk nilai
+                <b>ln(2)</b>, namun Anda hanya dibekali dua data referensi:
+                <b>ln(1) = 0</b> dan <b>ln(6) ≈ 1.7918</b>.
+              </p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>x</th>
+                    <th>ln(x)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>0</td>
+                  </tr>
+                  <tr>
+                    <td>6</td>
+                    <td>1.7918</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                <b>Tugas:</b> Gunakan interpolasi linier untuk mengestimasi
+                nilai dari <b>ln(2)</b>.
+              </p>
+              <p><b>Panduan:</b></p>
+              <ol>
+                <li>Pilih metode "Interpolasi Linier".</li>
+                <li>Masukkan 2 titik data di atas.</li>
+                <li>
+                  Gunakan fitur "Evaluasi Model" dengan memasukkan nilai x = 2
+                  untuk menemukan jawabannya.
+                </li>
+              </ol>
+              <div class="mt-4 pt-4 border-t">
+                <p><b>Kesimpulan & Jawaban:</b></p>
+                <p>
+                  Jawaban yang diharapkan adalah sekitar <b>0.3584</b>.
+                  Perhatikan bagaimana hasil ini cukup jauh dari nilai asli
+                  ln(2) ≈ 0.693. Ini menunjukkan bahwa akurasi interpolasi
+                  linier sangat bergantung pada seberapa dekat jarak antar titik
+                  data.
+                </p>
+              </div>
+            </div>
+          </details>
+          <details class="bg-gray-50 p-4 rounded-lg border">
+            <summary class="font-semibold cursor-pointer">
+              Kasus 3: Interpolasi Kuadrat - Estimasi Nilai Logaritma
+            </summary>
+            <div class="mt-4 prose max-w-none">
+              <p>
+                Sebuah program komputer perlu mengestimasi nilai logaritma
+                natural (ln) tanpa memanggil fungsi yang berat. Data yang
+                tersedia adalah:
+              </p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>x</th>
+                    <th>ln(x)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>8.0</td>
+                    <td>2.0794</td>
+                  </tr>
+                  <tr>
+                    <td>9.0</td>
+                    <td>2.1972</td>
+                  </tr>
+                  <tr>
+                    <td>9.5</td>
+                    <td>2.2513</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                <b>Tugas:</b> Gunakan interpolasi kuadratik untuk mengestimasi
+                nilai dari <b>ln(9.2)</b>.
+              </p>
+              <p><b>Panduan:</b></p>
+              <ol>
+                <li>Pilih metode "Interpolasi Kuadrat".</li>
+                <li>
+                  Hapus semua titik awal dan masukkan 3 titik data di atas.
+                </li>
+                <li>
+                  Gunakan fitur "Evaluasi Model" dengan memasukkan nilai x = 9.2
+                  untuk menemukan jawabannya.
+                </li>
+              </ol>
+              <div class="mt-4 pt-4 border-t">
+                <p><b>Kesimpulan & Jawaban:</b></p>
+                <p>
+                  Jawaban yang diharapkan adalah sekitar <b>2.2192</b>. Metode
+                  ini memberikan estimasi yang sangat baik karena kurva parabola
+                  dapat meniru kelengkungan fungsi logaritma dengan baik pada
+                  interval yang pendek.
+                </p>
+              </div>
+            </div>
+          </details>
+          <details class="bg-gray-50 p-4 rounded-lg border">
+            <summary class="font-semibold cursor-pointer">
+              Kasus 4: Interpolasi Polinom - Lintasan Robot
+            </summary>
+            <div class="mt-4 prose max-w-none">
+              <p>
+                Sebuah lengan robot harus bergerak mulus melewati beberapa titik
+                koordinat secara presisi:
+                <b>(1, 3), (3, 4), (5, 0), (6, -2)</b>.
+              </p>
+              <p>
+                <b>Tugas:</b> Tentukan persamaan polinom yang menggambarkan
+                lintasan robot tersebut. Berapakah posisi y robot saat berada di
+                x = 4?
+              </p>
+              <p><b>Panduan:</b></p>
+              <ol>
+                <li>Pilih metode "Interpolasi Polinom (Derajat n)".</li>
+                <li>
+                  Karena ada 4 titik, setel slider "Derajat Polinom" ke 3 (n-1).
+                </li>
+                <li>Masukkan 4 titik data di atas.</li>
+                <li>
+                  Gunakan fitur "Evaluasi Model" dengan x = 4 untuk menemukan
+                  posisi y.
+                </li>
+              </ol>
+              <div class="mt-4 pt-4 border-t">
+                <p><b>Kesimpulan & Jawaban:</b></p>
+                <p>
+                  Jawaban yang diharapkan adalah y = <b>2.25</b>. Ini
+                  menunjukkan bagaimana interpolasi dapat menemukan nilai yang
+                  tepat pada sebuah kurva yang mulus.
+                </p>
+              </div>
+            </div>
+          </details>
+          <details class="bg-gray-50 p-4 rounded-lg border">
+            <summary class="font-semibold cursor-pointer">
+              Kasus 5: Interpolasi Lagrange - Suhu Sensor
+            </summary>
+            <div class="mt-4 prose max-w-none">
+              <p>
+                Sebuah sensor suhu memberikan bacaan pada waktu-waktu tertentu,
+                namun rusak sebelum bisa memberikan bacaan pada jam ke-3. Data
+                yang terekam adalah:
+              </p>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Waktu (Jam)</th>
+                    <th>Suhu (°C)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>0</td>
+                    <td>20</td>
+                  </tr>
+                  <tr>
+                    <td>1</td>
+                    <td>24</td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td>22</td>
+                  </tr>
+                  <tr>
+                    <td>4</td>
+                    <td>28</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                <b>Tugas:</b> Gunakan Interpolasi Lagrange untuk mengestimasi
+                suhu pada jam ke-3.
+              </p>
+              <p><b>Panduan:</b></p>
+              <ol>
+                <li>Pilih metode "Interpolasi Lagrange".</li>
+                <li>Masukkan 4 titik data di atas.</li>
+                <li>
+                  Gunakan fitur "Evaluasi Model" dengan x = 3 untuk mengestimasi
+                  suhu.
+                </li>
+              </ol>
+              <div class="mt-4 pt-4 border-t">
+                <p><b>Kesimpulan & Jawaban:</b></p>
+                <p>
+                  Jawaban yang diharapkan adalah <b>21°C</b>. Interpolasi
+                  Lagrange sangat berguna untuk mengestimasi data yang hilang
+                  ketika titik-titik di sekitarnya diketahui secara pasti.
+                </p>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
